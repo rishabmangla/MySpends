@@ -69,7 +69,7 @@ public class PrefManager {
         int prevAmount = pref.getInt(key, 0);
         editor.putInt(key, value + prevAmount);
         editor.commit();
-        if(prevAmount != 0)
+        if(prevAmount > 0)
             return true;
         else
             return false;

@@ -40,8 +40,9 @@ public class SmsLoaderTask extends AsyncTask<Integer, String, Integer>{
         int bodyIndex = msgCursor.getColumnIndex("body");
         int timeIndex = msgCursor.getColumnIndex("date");
         String address;
-        int prevMonth = -1;
-
+        Calendar cal = Calendar.getInstance();
+        int prevMonth = cal.get(Calendar.MONTH);
+        Long prevSmsTimeStamp = cal.getTimeInMillis();
         if (!msgCursor.moveToFirst()) {
             return 0;
         }
@@ -50,23 +51,26 @@ public class SmsLoaderTask extends AsyncTask<Integer, String, Integer>{
         	address = msgCursor.getString(addressIndex);
             String currentSmsBody = msgCursor.getString(bodyIndex);
             Long currentSmsTimeStamp = msgCursor.getLong(timeIndex);
-            Calendar cal = Calendar.getInstance();
+
             cal.setTimeInMillis(currentSmsTimeStamp);
             int currentMonth = cal.get(Calendar.MONTH);
 
             if(Utils.checkIfBankSms(address, currentSmsBody)){
                 int amount = Utils.getAmountSpent(currentSmsBody);
                 if(amount > 0){
-                    totalSpends += amount;
                     if(currentMonth != prevMonth){
-                        String monthKey = new SimpleDateFormat("MMMM-yy").format(currentSmsTimeStamp);
-                        publishProgress(monthKey, String.valueOf(totalSpends));
-                        new PrefManager(mContext).storeMonthKeys(monthKey);
-                        new PrefManager(mContext).addMonthlySpending(monthKey, totalSpends);
+                        String monthKey = new SimpleDateFormat("MMMM-yy").format(prevSmsTimeStamp);
+                        //if month key is not added, add it
+                        if(!(new PrefManager(mContext).addMonthlySpending(monthKey, totalSpends))){
+                            publishProgress(monthKey, String.valueOf(totalSpends));
+                            new PrefManager(mContext).storeMonthKeys(monthKey);
+                        }
                         new PrefManager(mContext).addTotalSpending(totalSpends);
                         totalSpends = 0;
                         prevMonth = currentMonth;
                     }
+                    totalSpends += amount;
+                    prevSmsTimeStamp = currentSmsTimeStamp;
                 }
             }
         } while (msgCursor.moveToNext());
